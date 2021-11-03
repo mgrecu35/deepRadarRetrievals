@@ -22,7 +22,7 @@ def read_wrf(fname,it):
     
     R=287.058  #J*kg-1*K-1
     rho=prs/(R*T)
-    return qr,qs,qg,ncr,ncs,ncg,rho,z,t2c,f
+    return qr,qs,qg,ncr,ncs,ncg,rho,z,t2c,f,prs,qv
 
 
 nw_dm=np.loadtxt("NwDm.txt")
@@ -148,7 +148,7 @@ def calcZ(rwc,swc,gwc,ncr,ncs,ncg,z,Deq,ext,bscat,scat,g,vfall,\
     gett_atten(z_att_m,z_m,att_total,z)
     return z_m,z_att_m, att_total, nwr,nws,nwg, w_r, nw_r, z_r
 
-def calcZkuR(rwc,Deq_r,bscat_r,ext_r,vfall_r,mu,wl,nw_dm):
+def calcZkuR(rwc,Deq_r,bscat_r,ext_r,scat_r,g_r,vfall_r,mu,wl,nw_dm):
     Nw=rwc.copy()*0+0.08e8
     dm=(4**4*rwc/(np.pi*1e6*Nw))**0.25*1e3 # in mm
     for i in range(dm.shape[0]):
@@ -164,16 +164,17 @@ def calcZkuR(rwc,Deq_r,bscat_r,ext_r,vfall_r,mu,wl,nw_dm):
     z_r=rwc.copy()*0.0
     att_r=rwc.copy()*0.0
     dm_r=rwc.copy()*0.0
-    w_s=rwc.copy()*0.0
-    z_s=rwc.copy()*0.0
-    att_s=rwc.copy()*0.0
-    dm_s=rwc.copy()*0.0
+    kext_out_r=rwc.copy()*0.0
+    kscat_out_r=rwc.copy()*0.0
+    g_out_r=rwc.copy()*0.0
     lambd=(4+mu)/dm
     get_Zn(rwc,nwr,lambd,w_r,z_r,att_r,dm,dm_r,\
-           prate_r,Deq_r,bscat_r[9,:],ext_r[9,:],vfall_r,mu,wl)
+           prate_r,kext_out_r,kscat_out_r,g_out_r,Deq_r,bscat_r[9,:],ext_r[9,:],\
+           scat_r[9,:],g_r[9,:],\
+           vfall_r,mu,wl)
     print(rwc.mean())
     print(w_r.mean())
-    return nwr,z_r,att_r,prate_r
+    return nwr,z_r,att_r,prate_r,kext_out_r,kscat_out_r,g_out_r
 
 def calcZkuS(rwc,T,Deq,bscat,ext,vfall,mu,wl):
     Nw=rwc.copy()*0+0.08e8*8/2.
@@ -206,7 +207,7 @@ def nw_lambd(swc,nc,mu):
     lambd*=1e-2 # cm-1
     return n0,lambd
 
-def calcZkuG_2m(rwc,ncr,T,Deq,bscat,ext,vfall,mu,wl):
+def calcZkuG_2m(rwc,ncr,T,Deq,bscat,ext,scat,g,vfall,mu,wl):
     w_r=rwc.copy()*0.0
     z_r=rwc.copy()*0.0
     att_r=rwc.copy()*0.0
@@ -216,14 +217,17 @@ def calcZkuG_2m(rwc,ncr,T,Deq,bscat,ext,vfall,mu,wl):
     z_s=rwc.copy()*0.0
     att_s=rwc.copy()*0.0
     dm_s=rwc.copy()*0.0
+    kext_s=rwc.copy()*0.0
+    kscat_s=rwc.copy()*0.0
+    g_s=rwc.copy()*0.0
     dm=dm_r.copy()
     nwr,lambd=nw_lambd(rwc,ncr,mu)
     get_Z(rwc,nwr,lambd,w_s,z_s,att_s,dm_s,prate_s,\
-          Deq[18,:],bscat[-1,18,:],ext[-1,18,:],\
-          vfall[14,:],mu,wl)
-    return nwr,z_s,att_s,prate_s
+          kext_s,kscat_s,g_s,Deq[18,:],bscat[-1,18,:],ext[-1,18,:],\
+          scat[-1,18,:],g[-1,18,:],vfall[14,:],mu,wl)
+    return nwr,z_s,att_s,prate_s,kext_s,kscat_s,g_s
 
-def calcZkuS_2m(rwc,ncr,T,Deq,bscat,ext,vfall,mu,wl):
+def calcZkuS_2m(rwc,ncr,T,Deq,bscat,ext,scat,g,vfall,mu,wl):
     w_r=rwc.copy()*0.0
     z_r=rwc.copy()*0.0
     att_r=rwc.copy()*0.0
@@ -234,27 +238,31 @@ def calcZkuS_2m(rwc,ncr,T,Deq,bscat,ext,vfall,mu,wl):
     att_s=rwc.copy()*0.0
     dm_s=rwc.copy()*0.0
     dm=dm_r.copy()
+    kext_s=rwc.copy()*0.0
+    kscat_s=rwc.copy()*0.0
+    g_s=rwc.copy()*0.0
     nwr,lambd=nw_lambd(rwc,ncr,mu)
     get_Z(rwc,nwr,lambd,w_s,z_s,att_s,dm_s,prate_s,\
-          Deq[6,:],bscat[-1,6,:],ext[-1,6,:],\
-          vfall[6,:],mu,wl)
-    return nwr,z_s,att_s,prate_s
+          kext_s,kscat_s,g_s,Deq[6,:],bscat[-1,6,:],ext[-1,6,:],\
+          scat[-1,6,:],g[-1,6,:],vfall[6,:],mu,wl)
+    return nwr,z_s,att_s,prate_s,kext_s,kscat_s,g_s
 
 
 @jit(nopython=False)
 def get_Zn(w,nw,lambd,W,Z,att,dm,dm_out,rrate_out,\
-           Deq,bscat,ext,vfall,mu,wl):
+           kext,kscat,g,Deq,bscat,ext,scat,asym,vfall,mu,wl):
     dD=0.05
     rhow=1 #gcm-3
     Dint=np.arange(160)*dD+dD/2.0
     bscatInt=np.interp(Dint,Deq,bscat)
     extInt=np.exp(np.interp(Dint,Deq,np.log(ext)))  #m^2
     vfallInt=np.interp(Dint,Deq,vfall)
+    scatInt=np.exp(np.interp(Dint,Deq,np.log(scat)))  #m^2
+    gInt=np.interp(Dint,Deq,(asym))  #m^2
     fact=1e3/np.pi**5/0.93*wl**4
-   
     nP=W.shape[0]
     f_mu=6/4**4*(4+mu)**(mu+4)/gam(mu+4)
-    print(vfallInt)
+    #print(vfallInt)
     for j in range(nP):
         vdop=0
         nc0=0
@@ -269,7 +277,10 @@ def get_Zn(w,nw,lambd,W,Z,att,dm,dm_out,rrate_out,\
             Z[j]=Z[j]+nw[j]*Nd*bscatInt[i]
             vdop=vdop+nw[j]*Nd*bscatInt[i]*vfallInt[i]
             rrate=rrate+nw[j]*Nd*(0.1*d)**3*np.pi/6*vfallInt[i]
-            att[j]=att[j]+nw[j]*Nd*extInt[i]*4.343 #(/km)1
+            att[j]=att[j]+nw[j]*Nd*extInt[i]*4.343 #(/km)
+            kext[j]=kext[j]+nw[j]*Nd*extInt[i] #(/km)
+            kscat[j]=kscat[j]+nw[j]*Nd*scatInt[i] #(/km)
+            g[j]=g[j]+nw[j]*Nd*scatInt[i]*gInt[i] #(/km)
             nc0=nc0+nw[j]*Nd
             Vol=Vol+nw[j]*Nd*(1e-3*d)**3*np.pi/6
         Z[j]=np.log10(Z[j]*fact)*10
@@ -277,12 +288,14 @@ def get_Zn(w,nw,lambd,W,Z,att,dm,dm_out,rrate_out,\
         rrate_out[j]=rrate*3.6e-3
 
 @jit(nopython=False)
-def get_Z(w,nw,lambd,W,Z,att,dm,prate,Deq,bscat,ext,vfall,mu,wl):
+def get_Z(w,nw,lambd,W,Z,att,dm,prate,kext,kscat,g,Deq,bscat,ext,scat,asym,vfall,mu,wl):
     dD=0.05
     rhow=1 #gcm-3
     Dint=np.arange(160)*dD+dD/2.0
     bscatInt=np.interp(Dint,Deq,bscat)
     extInt=np.exp(np.interp(Dint,Deq,np.log(ext)))  #m^2
+    scatInt=np.exp(np.interp(Dint,Deq,np.log(scat)))  #m^2
+    gInt=np.interp(Dint,Deq,(asym))  #m^2
     vfallInt=np.interp(Dint,Deq,vfall)
     fact=1e6/np.pi**5/0.93*wl**4
     print(W.shape)
@@ -304,7 +317,10 @@ def get_Z(w,nw,lambd,W,Z,att,dm,prate,Deq,bscat,ext,vfall,mu,wl):
             Z[j]=Z[j]+nw[j]*Nd*bscatInt[i]
             vdop=vdop+nw[j]*Nd*bscatInt[i]*vfallInt[i]
             rrate=rrate+nw[j]*Nd*(0.1*d)**3*np.pi/6*vfallInt[i]
-            att[j]=att[j]+nw[j]*Nd*extInt[i]*1e3*4.343 #(/km)1
+            att[j]=att[j]+nw[j]*Nd*extInt[i]*1e3*4.343 #(/km)
+            kext[j]=kext[j]+nw[j]*Nd*extInt[i]*1e3 #(/km)
+            kscat[j]=kscat[j]+nw[j]*Nd*scatInt[i]*1e3 #(/km)
+            g[j]=g[j]+nw[j]*Nd*scatInt[i]*gInt[i]*1e3 #(/km)
             nc0=nc0+nw[j]*Nd
             Vol=Vol+nw[j]*Nd*(1e-3*d)**3*np.pi/6
         Z[j]=np.log10(Z[j]*fact)*10
