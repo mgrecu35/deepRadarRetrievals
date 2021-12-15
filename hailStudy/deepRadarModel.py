@@ -49,6 +49,7 @@ def getData(fname,scalerZ,scalerT,scalerR):
 
 X_val_IPHEX,y_IPHEX=getData("zKuPrecip_Dataset_Validation_IPHEX.nc",scalerZ,scalerT,scalerR)
 X_val_ColStorm,y_ColStorm=getData("zKuPrecip_Dataset_Validation_ColStorm.nc",scalerZ,scalerT,scalerR)
+X_val_OK,y_OK=getData("zKuPrecip_Dataset_Validation_OKMCS.nc",scalerZ,scalerT,scalerR)
 
 def lstm_model(ndims=2):
     ntimes=None
@@ -60,7 +61,7 @@ def lstm_model(ndims=2):
     model = tf.keras.Model(inputs=inp, outputs=out)
     return model
 
-itrain=0
+itrain=1
 if itrain==1:
     model=lstm_model(2)
     model.compile(
@@ -69,8 +70,12 @@ if itrain==1:
         metrics=[tf.keras.metrics.MeanSquaredError()])
     
     
-    history = model.fit(X, y, batch_size=64,epochs=120,
+    history = model.fit(X, y, batch_size=32,epochs=40,
                         validation_data=(X_val_IPHEX, y_IPHEX))
 else:
     model=tf.keras.models.load_model("radarProfiling.h5")
 
+
+y_OK_=model.predict(X_val_OK)
+y_IPHEX_=model.predict(X_val_IPHEX)
+y_ColStorm_=model.predict(X_val_ColStorm)
