@@ -23,33 +23,27 @@ lamb4=lambd**4
 Z=10.**(0.1*zTrue)*pi4/1e18/lamb4/4*0.93
 dZ=log10(pi4/1e18/lamb4/4*0.93)*10
 kext=kext*1e-3
-!print*, zTrue
-!print*,dr,lambd
-ext2bscatt=1e7
+
+ext2bscatt=1000.
 if (noNorm==1) then
    salb=salb*1e-3
    salb=salb/kext
 end if
+extinct=kext
 do k=1,nrange
    if (zTrue(k)>-10) then
       ext2bscatt(k)=kext(k)/Z(k)
-   else
-      ext2bscatt(k)=1e7
    endif
-   !print(kext
 end do
 
-            
+!print*,nrange     
 dr=dr*1000
-!int multiscatter_(int *nrange, float *extFort, 
-!float *ext2bscatt, float *salbFort, float *gFort,
-!float *bscatFort, float *lambd, int *noMS, float *angle)
 
-call multiscatter(nrange, kext, ext2bscatt, salb, g, &
-     bscatt, lambd,noMS, theta, dr)
+call multiscatter(nrange, extinct, ext2bscatt, salb, g, &
+     bscatt, lambd,noMS,theta,dr)
 !multiscatter_(int *nrange, float *extFort, 
 !float *ext2bscatt, float *salbFort, float *gFort,
-!float *bscatFort, float *lambd, int *noMS, float *angle)
+!float *bscatFort, float *lambd, int *noMS, float *angle, float *dr)
 
 do i=1,nrange
 !   print*, bscatt(i)
