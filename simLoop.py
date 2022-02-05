@@ -2,9 +2,10 @@ import numpy as np
 from netCDF4 import Dataset
 from scipy.ndimage import gaussian_filter
 
-def simLoop(f,zKuL,zKu_msL,xL,beta,maxHL,zKu_cL,sdsu,zka_3d,
-            zka_3d_ms, zka_3d_true,\
-            pRateL,attKuL,rwcL,swcL,f1L,f2L,ijL):
+def simLoop(f,zKuL,zKu_msL,xL,beta,maxHL,zKu_cL,sdsu,zku_3d,
+            zku_3d_ms, zku_3d_true,\
+            pRateL,attKuL,rwcL,swcL,f1L,f2L,ijL,dnL,
+            zKaL,zKa_msL,zKa_cL,attKaL):
     R=287
     h=(250/2.+np.arange(76)*250)/1e3
     h1=(0.+np.arange(77)*250)/1e3
@@ -23,23 +24,27 @@ def simLoop(f,zKuL,zKu_msL,xL,beta,maxHL,zKu_cL,sdsu,zka_3d,
     gwc=(qg+qs)*rho*1e3
     qv=fh['qv'][0,:,:,:]
     wv=qv*rho
-    
-    zka_3d=zka_3d*0.0-99
-    zka_3d_ms=zka_3d_ms*0.0-99
-    zka_3d_true=zka_3d_true*0.0-99
+    zku_3d=zku_3d*0.0-99
+    zku_3d_ms=zku_3d_ms*0.0-99
+    zku_3d_true=zku_3d_true*0.0-99
+    zka_3d=zku_3d*0.0-99
+    zka_3d_ms=zku_3d_ms*0.0-99
+    zka_3d_true=zku_3d_true*0.0-99
     #plt.figure(figsize=(8,11))
     nz,nx,ny=rwc.shape
+    pia2d=np.zeros((nx,ny),float)
+    pia2d_ka=np.zeros((nx,ny),float)
     for i1,i2 in zip(a[0],a[1]):
-        zKa_1D=[]
+        zKu_1D=[]
         att_1D=[]
         pwc_1D=[]
         prate_1D=[]
        
-        piaKa=0
+        piaKu=0
         dr=0.250
-        dn1=np.zeros((76),float)-0.5
-        rwc1=np.interp(h,z[:],rwc[:,i1,i2])*1.2
-        swc1=np.interp(h,z[:],gwc[:,i1,i2])*1.2
+        dn1=np.zeros((76),float)-0.5+np.random.randn()*0.5
+        rwc1=np.interp(h,z[:],rwc[:,i1,i2])*1.0
+        swc1=np.interp(h,z[:],gwc[:,i1,i2])*1.0
         temp=np.interp(h,z[:],T[:,i1,i2])
         temp1=np.interp(h1,z[:],T[:,i1,i2])
         press=np.interp(h,z[:],prs[:,i1,i2])
@@ -47,7 +52,7 @@ def simLoop(f,zKuL,zKu_msL,xL,beta,maxHL,zKu_cL,sdsu,zka_3d,
         a=np.nonzero(swc1>0.01)
         if len(a[0])>5:
             ht1=h[a[0][-1]]
-            ht2=ht1+np.random.random()*5
+            ht2=ht1+np.random.random()*1
             ht2=min(h[-1],ht2)
             hb1=h[a[0][0]]
             dh=(ht2-ht1)/len(a[0]-1)*np.arange(len(a[0]))
@@ -62,51 +67,57 @@ def simLoop(f,zKuL,zKu_msL,xL,beta,maxHL,zKu_cL,sdsu,zka_3d,
         f2=gaussian_filter(f2, sigma=3)
         rwc1=f1*rwc1
         swc1=f2*swc1
-        zka_m ,zka_t, attka, piaka, \
+        zku_m ,zku_t, attku, piaku, \
             kext,salb,asym,kext_,salb_,asym_,pRate\
             =sdsu.reflectivity_ku(rwc1,swc1,wv1,dn1,temp,press,dr)
+        zka_m ,zka_t, attka, piaka, \
+            kext_ka,salb_ka,asym_ka,kext_ka_,salb_ka_,asym_ka_,pRateKa\
+            =sdsu.reflectivity_ka(rwc1,swc1,wv1,dn1,temp,press,dr)
         dr=0.25
         noms=0
         alt=400.
         freq=13.8
         nonorm=0
-        theta=0.35
-        
-        if zka_m.max()>40 and i1>0 and i1<nx-1 and i2>0 and i2<ny-1:
+        theta=0.35/2.0
+        zku_3d[:,i1,i2]=zku_m.copy()
+        zku_3d_ms[:,i1,i2]=zku_m.copy()
+        zka_3d[:,i1,i2]=zka_m.copy()
+        zka_3d_ms[:,i1,i2]=zka_m.copy()
+        pia2d[i1,i2]=piaku
+        pia2d_ka[i1,i2]=piaka
+        freqKa=35.5
+        if zku_m.max()>40 and i1>0 and i1<nx-1 and i2>0 and i2<ny-1:
             ijL.append([i1,i2])
             zms = sdsu.multiscatterf(kext[::-1],salb[::-1],asym[::-1],\
-                                 zka_t[::-1],dr,noms,alt,\
+                                 zku_t[::-1],dr,noms,alt,\
                                  theta,freq,nonorm)
+            zms_ka = sdsu.multiscatterf(kext_ka[::-1],salb_ka[::-1],\
+                                        asym_ka[::-1],\
+                                        zka_t[::-1],dr,noms,alt,\
+                                        theta,freqKa,nonorm)
             
             pRateL.append(pRate)
-            zKuL.append(zka_m)
+            zKuL.append(zku_m)
+            zKaL.append(zka_m)
             f1L.append(f1)
             f2L.append(f2)
+            dnL.append(dn1)
             zKu_msL.append(zms[::-1])
-            attKuL.append(attka)
+            zKa_msL.append(zms_ka[::-1])
+            zku_3d_ms[:,i1,i2]=zms[::-1].copy()
+            zka_3d_ms[:,i1,i2]=zms_ka[::-1].copy()
+            attKuL.append(attku)
+            attKaL.append(attka)
             rwcL.append(rwc1)
             swcL.append(swc1)
-            zKu_cL.append(zka_t)
-            ind=np.argmax(zka_m[12:24])
-            maxHL.append([zka_m[12+ind],ind,zka_t[12+ind]-zka_m[12+ind]])
-            if zka_t[0]>40  and zka_t[10]>140:
-                q=0.2*np.log(10)
-                zKum=zka_m[::-1]
-                zeta=q*beta*alpha_1*10**(0.1*zKum*beta)*dr
-                zetamax=0.9998621204047031
-                if zeta.cumsum()[-1]>zetamax:
-                    eps=0.9999*zetamax/zeta.cumsum()[-1]
-                    zeta=eps*zeta
-                else:
-                    eps=1.0
-                corrc=eps*zeta.cumsum()
-                zc=zKum-10/beta*np.log10(1-corrc)
-                stop
-            #x1=list(swc1[0:64])
-            #x2=list(rwc1[0])
-        zka_3d[:,i1,i2]=zka_m
+            zKu_cL.append(zku_t)
+            zKa_cL.append(zka_t)
+            ind=np.argmax(zku_m[12:24])
+            maxHL.append([zku_m[12+ind],ind,zku_t[12+ind]-zku_m[12+ind]])
+            
+
         #zms = sdsu.multiscatterf(kext[::-1],salb[::-1],asym[::-1],\
-        #                         zka_t[::-1],dr,noms,alt,\
+        #                         zku_t[::-1],dr,noms,alt,\
         #                         theta,freq,nonorm)
         #kext1=np.zeros((75),float)
         #salb1=np.zeros((75),float)
@@ -129,3 +140,4 @@ def simLoop(f,zKuL,zKu_msL,xL,beta,maxHL,zKu_cL,sdsu,zka_3d,
         #salb1[salb1>0.99]=0.99
         #tb = sdsu.radtran(umu,temp1[0],temp1,h1/1000.,kext1,salb1,asym1,\
         #                  fisot,emis,ebar,lambert)
+    return zku_3d,zku_3d_ms,pia2d,zka_3d,zka_3d_ms,pia2d_ka

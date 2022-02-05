@@ -65,36 +65,62 @@ f2L=[]
 from simLoop import simLoop
 ijL=[]
 zKu_nubf_msL=[]
+zKa_nubf_msL=[]
 iL=[-1, -1, -1, 0, 0, 0, 1, 1, 1]
 jL=[-1, 0, 1, -1, 0, 1, -1, 0, 1]
 
+piaL=[]
+piaKaL=[]
+dnL=[]
+zKaL,zKa_msL,zKa_cL,attKaL=[],[],[],[]
 for f in fs[:]:
     for it in range(4):
-        zka_3d=np.zeros((76,200,200),float)-99
-        zka_3d_ms=np.zeros((76,200,200),float)-99
-        zka_3d_true=np.zeros((76,200,200),float)-99
-        simLoop(f,zKuL,zKu_msL,xL,beta,maxHL,zKu_cL,sdsu,zka_3d,\
-                zka_3d_ms,zka_3d_true,pRateL,attKuL,rwcL,swcL,f1L,f2L,ijL)
+        ijL=[]
+        zku_3d=np.zeros((76,200,200),float)-99
+        zku_3d_ms=np.zeros((76,200,200),float)-99
+        zku_3d_true=np.zeros((76,200,200),float)-99
+        zku_3d,zku_3d_ms,pia2d,\
+            zka_3d,zka_3d_ms,pia2d_ka=\
+                simLoop(f,zKuL,zKu_msL,xL,beta,maxHL,zKu_cL,sdsu,zku_3d,\
+                        zku_3d_ms,zku_3d_true,pRateL,attKuL,rwcL,swcL,\
+                        f1L,f2L,ijL,
+                        dnL,zKaL,zKa_msL,zKa_cL,attKaL)
         
         for i_12 in ijL:
             i1=i_12[0]
             i2=i_12[1]
             z1=np.zeros((76),float)
+            z1_ka=np.zeros((76),float)
+            pia_nubf=0
+            pia_ka_nubf=0
             for di,dj in zip(iL,jL):
-                z1+=10.0**(0.1*zka_3d_ms[:,i1+di,i2+dj])/9.0
+                z1+=10.0**(0.1*zku_3d_ms[:,i1+di,i2+dj])/9.0
+                pia_nubf+=10**(-0.1*pia2d[i1+di,i2+dj])/9.0
+                z1_ka+=10.0**(0.1*zka_3d_ms[:,i1+di,i2+dj])/9.0
+                pia_ka_nubf+=10**(-0.1*pia2d_ka[i1+di,i2+dj])/9.0
+            pia_nubf=-10*np.log10(pia_nubf)
+            pia_ka_nubf=-10*np.log10(pia_ka_nubf)
+            piaL.append([pia2d[i1,i2],pia_nubf])
             zKu_nubf_msL.append(np.log10(z1)*10)
+            piaKaL.append([pia2d_ka[i1,i2],pia_ka_nubf])
+            zKa_nubf_msL.append(np.log10(z1_ka)*10)
                 
 
 plt.figure()
 plt.plot(np.array(zKuL).mean(axis=0),h)
 plt.plot(np.array(zKu_msL).mean(axis=0),h)
 plt.plot(np.array(zKu_nubf_msL).mean(axis=0),h)
+plt.plot(np.array(zKaL).mean(axis=0),h)
+plt.plot(np.array(zKa_msL).mean(axis=0),h)
+plt.plot(np.array(zKa_nubf_msL).mean(axis=0),h)
 plt.ylim(0,15)
 plt.grid()
 plt.savefig('randomZ.png')
-stop
-zka_3dm=np.ma.array(zka_3d,mask=zka_3d<10)
-plt.pcolormesh(zka_3dm[:,:,150],cmap='jet',vmax=55)
+#stop
+plt.figure()
+zka_3dm=np.ma.array(zka_3d_ms,mask=zka_3d_ms<10)
+plt.pcolormesh(zka_3dm[:,:,150],cmap='jet',vmax=35)
+plt.colorbar()
 zKu_msL=np.array(zKu_msL)
 build_cfad(zKu_msL,cfadZ)
 plt.figure()
@@ -175,22 +201,35 @@ plt.colorbar(c)
 #plt.pcolormesh(35+np.arange(20),range(12),cpiaMap.T,cmap='jet')
 
 import xarray as xr
-zKu_L=xr.DataArray(zKuL)
-zKu_cL=xr.DataArray(zKu_cL)
-zKu_msL=xr.DataArray(zKu_msL)
-rwcL=xr.DataArray(rwcL)
-swcL=xr.DataArray(swcL)
-attKuL=xr.DataArray(attKuL)
-f1L=xr.DataArray(f1L)
-f2L=xr.DataArray(f2L)
-
+zKu_L=xr.DataArray(zKuL,dims=['np','nz'])
+zKu_cL=xr.DataArray(zKu_cL,dims=['np','nz'])
+zKu_msL=xr.DataArray(zKu_msL,dims=['np','nz'])
+zKa_L=xr.DataArray(zKaL,dims=['np','nz'])
+zKa_cL=xr.DataArray(zKa_cL,dims=['np','nz'])
+zKa_msL=xr.DataArray(zKa_msL,dims=['np','nz'])
+rwcL=xr.DataArray(rwcL,dims=['np','nz'])
+swcL=xr.DataArray(swcL,dims=['np','nz'])
+pRateL=xr.DataArray(pRateL,dims=['np','nz'])
+attKuL=xr.DataArray(attKuL,dims=['np','nz'])
+attKaL=xr.DataArray(attKaL,dims=['np','nz'])
+f1L=xr.DataArray(f1L,dims=['np','nz'])
+f2L=xr.DataArray(f2L,dims=['np','nz'])
+piaL=xr.DataArray(piaL,dims=['np','n2'])
+piaKaL=xr.DataArray(piaKaL,dims=['np','n2'])
+dnL=xr.DataArray(dnL,dims=['np','nz'])
+zKu_nubf_ms=xr.DataArray(zKu_nubf_msL,dims=['np','nz'])
+zKa_nubf_ms=xr.DataArray(zKa_nubf_msL,dims=['np','nz'])
 ds=xr.Dataset({"zKu":zKu_L,"zKu_ms":zKu_msL,"zKu_true":zKu_cL,\
+               "zKa":zKu_L,"zKa_ms":zKu_msL,"zKa_true":zKa_cL,\
                "rwc":rwcL,"swc":swcL,"attKu":attKuL,\
-               "f1":f1L,"f2":f2L})
+               "attKa":attKaL,\
+               "f1":f1L,"f2":f2L, "zKu_nubf_ms":zKu_nubf_ms,"piaKu":piaL,\
+               "zKa_nubf_ms":zKa_nubf_ms,"piaKa":piaL,\
+               "pRate":pRateL, "dn":dnL})
 comp = dict(zlib=True, complevel=5)
 
 encoding = {var: comp for var in ds.data_vars}
-ds.to_netcdf("sim_obs_CM1.nc", encoding=encoding)
+ds.to_netcdf("sim_obs_CM1_dn_sloped.nc", encoding=encoding)
 
 plt.figure()
 plt.plot(np.array(zKuL).mean(axis=0),h)
