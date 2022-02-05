@@ -114,8 +114,9 @@ plt.plot(np.array(zKaL).mean(axis=0),h)
 plt.plot(np.array(zKa_msL).mean(axis=0),h)
 plt.plot(np.array(zKa_nubf_msL).mean(axis=0),h)
 plt.ylim(0,15)
+plt.xlim(-15,45)
 plt.grid()
-plt.savefig('randomZ.png')
+plt.savefig('randomZ_sl.2.0.png')
 #stop
 plt.figure()
 zka_3dm=np.ma.array(zka_3d_ms,mask=zka_3d_ms<10)
@@ -229,7 +230,7 @@ ds=xr.Dataset({"zKu":zKu_L,"zKu_ms":zKu_msL,"zKu_true":zKu_cL,\
 comp = dict(zlib=True, complevel=5)
 
 encoding = {var: comp for var in ds.data_vars}
-ds.to_netcdf("sim_obs_CM1_dn_sloped.nc", encoding=encoding)
+ds.to_netcdf("sim_obs_CM1_dn_sl_2.0.nc", encoding=encoding)
 
 plt.figure()
 plt.plot(np.array(zKuL).mean(axis=0),h)

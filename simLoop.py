@@ -67,12 +67,13 @@ def simLoop(f,zKuL,zKu_msL,xL,beta,maxHL,zKu_cL,sdsu,zku_3d,
         f2=gaussian_filter(f2, sigma=3)
         rwc1=f1*rwc1
         swc1=f2*swc1
+        sl=2.0
         zku_m ,zku_t, attku, piaku, \
             kext,salb,asym,kext_,salb_,asym_,pRate\
-            =sdsu.reflectivity_ku(rwc1,swc1,wv1,dn1,temp,press,dr)
+            =sdsu.reflectivity_ku(rwc1,swc1,wv1,dn1,temp,press,dr,sl)
         zka_m ,zka_t, attka, piaka, \
             kext_ka,salb_ka,asym_ka,kext_ka_,salb_ka_,asym_ka_,pRateKa\
-            =sdsu.reflectivity_ka(rwc1,swc1,wv1,dn1,temp,press,dr)
+            =sdsu.reflectivity_ka(rwc1,swc1,wv1,dn1,temp,press,dr,sl)
         dr=0.25
         noms=0
         alt=400.
