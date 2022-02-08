@@ -73,6 +73,7 @@ piaL=[]
 piaKaL=[]
 dnL=[]
 zKaL,zKa_msL,zKa_cL,attKaL=[],[],[],[]
+sl=2.0
 for f in fs[:]:
     for it in range(4):
         ijL=[]
@@ -84,7 +85,7 @@ for f in fs[:]:
                 simLoop(f,zKuL,zKu_msL,xL,beta,maxHL,zKu_cL,sdsu,zku_3d,\
                         zku_3d_ms,zku_3d_true,pRateL,attKuL,rwcL,swcL,\
                         f1L,f2L,ijL,
-                        dnL,zKaL,zKa_msL,zKa_cL,attKaL)
+                        dnL,zKaL,zKa_msL,zKa_cL,attKaL,sl)
         
         for i_12 in ijL:
             i1=i_12[0]
@@ -230,7 +231,7 @@ ds=xr.Dataset({"zKu":zKu_L,"zKu_ms":zKu_msL,"zKu_true":zKu_cL,\
 comp = dict(zlib=True, complevel=5)
 
 encoding = {var: comp for var in ds.data_vars}
-ds.to_netcdf("sim_obs_CM1_dn_sl_2.0.nc", encoding=encoding)
+ds.to_netcdf("sim_obs_CM1_dn_sl_%3.1f.nc"%sl, encoding=encoding)
 
 plt.figure()
 plt.plot(np.array(zKuL).mean(axis=0),h)

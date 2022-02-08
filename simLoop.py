@@ -5,7 +5,7 @@ from scipy.ndimage import gaussian_filter
 def simLoop(f,zKuL,zKu_msL,xL,beta,maxHL,zKu_cL,sdsu,zku_3d,
             zku_3d_ms, zku_3d_true,\
             pRateL,attKuL,rwcL,swcL,f1L,f2L,ijL,dnL,
-            zKaL,zKa_msL,zKa_cL,attKaL):
+            zKaL,zKa_msL,zKa_cL,attKaL,sl):
     R=287
     h=(250/2.+np.arange(76)*250)/1e3
     h1=(0.+np.arange(77)*250)/1e3
@@ -61,13 +61,13 @@ def simLoop(f,zKuL,zKu_msL,xL,beta,maxHL,zKu_cL,sdsu,zku_3d,
             swc11=np.interp(h[a[0][0]:ntop],h[a[0]]+dh,swc1[a[0]])
             for k in range(a[0][0],ntop):
                 swc1[k]=max(swc1[k],swc11[k-a[0][0]])
-        f1=np.exp(np.random.randn(76)*1)
-        f2=np.exp(np.random.randn(76)*1)
+        f1=np.exp(np.random.randn(76)*0.5)
+        f2=np.exp(np.random.randn(76)*0.5)
         f1=gaussian_filter(f1, sigma=3)
         f2=gaussian_filter(f2, sigma=3)
         rwc1=f1*rwc1
         swc1=f2*swc1
-        sl=2.0
+        #sl=2.0
         zku_m ,zku_t, attku, piaku, \
             kext,salb,asym,kext_,salb_,asym_,pRate\
             =sdsu.reflectivity_ku(rwc1,swc1,wv1,dn1,temp,press,dr,sl)

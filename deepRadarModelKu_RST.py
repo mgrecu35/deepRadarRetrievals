@@ -9,7 +9,7 @@ from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam, RMSprop
 
 fname="sim_obs_CM1.nc"
-zKu,zKu_true,zKa,zKa_true,pRate=[],[],[],[],[]
+zKu,zKu_true,zKa,zKa_true,pRate,piaKu,piaKa=[],[],[],[],[],[]
 def readDataset(fname):
     fh=Dataset(fname)
     zKu=fh["zKu_nubf_ms"][:]
@@ -17,23 +17,27 @@ def readDataset(fname):
     zKa=fh["zKa_nubf_ms"][:]
     zKa_true=fh["zKa_true"][:]
     pRate=fh["pRate"][:]
-    return zKu,zKu_true,zKa,zKa_true,pRate
+    piaKu=fh["piaKu"][:]
+    piaKa=fh["piaKa"][:]
+    return zKu,zKu_true,zKa,zKa_true,pRate,piaKu,piaKa
 
 import glob
 fL=glob.glob("sim_obs_CM1_dn_sl_*.nc")
 for f in fL:
-    zKu1,zKu_true1,zKa1,zKa_true1,pRate1=readDataset(f)
+    zKu1,zKu_true1,zKa1,zKa_true1,pRate1,piaKu1=readDataset(f)
     zKu.extend(zKu1)
     zKu_true.extend(zKu_true1)
     zKa.extend(zKa1)
     zKa_true.extend(zKa_true1)
     pRate.extend(pRate1)
+    piaKu.extend(piaKu1)
 
 zKu=np.array(zKu)
 zKu_true=np.array(zKu_true)
 zKa=np.array(zKa)
 zKa_true=np.array(zKa_true)
 pRate=np.array(pRate)
+piaKu=np.array(piaKu)
     
 from sklearn.preprocessing import StandardScaler
 scalerZKu = StandardScaler()
@@ -68,7 +72,47 @@ import scipy
 import scipy.optimize
 from scipy.optimize import minimize as minimize
 
+from sklearn.neighbors import NearestNeighbors
+import numpy as np
+X=np.swapaxes(np.array([zKu_sc,zKa_sc]).T,0,1)
+x_train=X[ind_train,:,:]
+x_test=X[ind_test,:,:]
+piaKu_train=piaKu[ind_train,:]
+piaKu_test=piaKu[ind_test,:]
 
+nbrs = NearestNeighbors(n_neighbors=70, \
+                        algorithm='ball_tree').fit(x_train[:,-40:,0])
+
+
+n1=x_test.shape[0]
+r1=np.random.random(n1)
+a1=np.nonzero(r1<0.1)
+rms,ind=nbrs.kneighbors(x_test[a1[0],-40:,0])
+sfcPrecip_test=[]
+sfcPrecip_0=[]
+
+for i, i1 in enumerate(a1[0]):
+    w1=np.exp(-0.5*(piaKu_test[i1,1]-piaKu_train[ind[i],1])**2/9)
+    y1=(y_train[ind[i],-1]*w1).sum()/w1.sum()
+    y2=y_test[i1,-1]
+    sfcPrecip_test.append(scalerPrec.scale_[0]*y2+scalerPrec.mean_[0])
+    sfcPrecip_0.append(scalerPrec.scale_[0]*y1+scalerPrec.mean_[0])
+
+sfcPrecip_test=np.array(sfcPrecip_test)
+sfcPrecip_0=np.array(sfcPrecip_0)
+interVs=[[1,10],[10,20],[20,30],[30,40],[40,50]]
+for int1 in interVs:
+    a=np.nonzero((sfcPrecip_test-int1[0])*(sfcPrecip_test-int1[1])<0)
+    diff=np.abs((sfcPrecip_test[a[0]]-sfcPrecip_0[a[0]]))
+    #plt.hist(diff/sfcPrecip_test[a[0]]*100)
+    b=np.nonzero(diff>1)
+    print(int1, len(b[0])/len(a[0]))
+
+ax=plt.subplot(111)
+plt.hist2d(sfcPrecip_test,sfcPrecip_0,bins=np.arange(25)*3,norm=matplotlib.colors.LogNorm(),cmap='jet')
+ax.set_aspect('equal')
+
+stop
 def lstm_model(ndims=2):
     ntimes=None
     inp = tf.keras.layers.Input(shape=(ntimes,ndims,))
@@ -82,28 +126,30 @@ def lstm_model(ndims=2):
 
 itrain=1
 #stop
-model=lstm_model(2)
-X=np.swapaxes(np.array([zKu_sc,zKa_sc]).T,0,1)
-x_train=X[ind_train,:,:]
-x_test=X[ind_test,:,:]
+model=lstm_model(1)
 
 if itrain==1:
     model.compile(
         optimizer=tf.keras.optimizers.Adam(),  \
         loss='mse',\
         metrics=[tf.keras.metrics.MeanSquaredError()])
-    history = model.fit(x_train[:,-40:,:], y_train[:,-40:], \
+    history = model.fit(x_train[:,-40:,:1], y_train[:,-40:], \
                         batch_size=32,epochs=2,
-                        validation_data=(x_test[:,-40:,:], \
+                        validation_data=(x_test[:,-40:,:1], \
                                          y_test[:,-40:]))
 else:
-    model=tf.keras.models.load_model("radarProfilingDualFreq.h5")
+    model=tf.keras.models.load_model("radarProfilingKuFreq.h5")
 
-model.save("radarProfilingDualFreq.h5")
+model.save("radarProfilingKuFreq.h5")
 
-yp=model(x_test[:,-40:])
+yp=model(x_test[:,-40:,:1])
+
 sfcPrecip_0=scalerPrec.scale_[0]*yp[:,-1,0].numpy()+scalerPrec.mean_[0]
 sfcPrecip_test=pRate[:,0][ind_test]
-a=np.nonzero((sfcPrecip_test-40)*(sfcPrecip_test-50)<0)
-diff=np.abs((sfcPrecip_test[a[0]]-sfcPrecip_0[a[0]]))
-plt.hist(diff/sfcPrecip_test[a[0]]*100)
+interVs=[[1,10],[10,20],[20,30],[30,40],[40,50]]
+for int1 in interVs:
+    a=np.nonzero((sfcPrecip_test-int1[0])*(sfcPrecip_test-int1[1])<0)
+    diff=np.abs((sfcPrecip_test[a[0]]-sfcPrecip_0[a[0]]))
+    #plt.hist(diff/sfcPrecip_test[a[0]]*100)
+    b=np.nonzero(diff>1)
+    print(int1, len(b[0])/len(a[0]))
