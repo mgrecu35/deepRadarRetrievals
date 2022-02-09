@@ -67,16 +67,23 @@ r1L=[]
 r2L=[]
 r3L=[]
 from netCDF4 import Dataset
-dS=Dataset("zKuPrecip_NUBF2_Dataset.nc")
+dS=Dataset("deepRadarRetrievals/zKuPrecip_NUBF_Dataset.nc","r+")
+#dS.createVariable('zKuHB','float64',('dim_0', 'dim_1'))
 
+zKuHBL=[]
 for Zm1,piaKu,prate,Zc1 in zip(dS["zKu_MS_NUBF"][:],dS["piaKuC"][:],
                                dS["pRate"][:],dS["zKuTrue"][:]):
     Zm=Zm1.data[::-1]
     zc,eps=hb(Zm,alpha,dr,1.25*piaKu)
     r1=10**(retCoeff[0]*zc[-1]+retCoeff[1])
+    if piaKu<6:
+        continue
     r1=min(300,r1)
     r1L.append(r1)
     r2L.append(prate[0])
     r3L.append(10**(retCoeff[0]*Zc1.data[0]+retCoeff[1]))
+    zKuHBL.append(zc[::-1])
+
+#dS["zKuHB"][:,:]=np.array(zKuHBL)
 
 dS.close()
