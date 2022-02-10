@@ -104,7 +104,7 @@ layerTL=[]
 slayerTL=[]
 dprPIAL=[]
 slayerTL=[]
-for f in sorted(fs)[:60]:
+for f in sorted(fs)[:120]:
     dic,zKu1,sfcPrecip1,zKuc1,srtPIA1,lt1,dpr_pia,sl1=readGPM(f,cfadZ)
     slayerTL.extend(sl1)
     srtPIAL.extend(srtPIA1)
@@ -123,6 +123,17 @@ grateCoeff=np.array([ 0.0738764 , -1.56192592])
 grateCoeff=np.array([ 0.0738764 , -1.69254395])
 grateCoeff=np.array([ 0.0738764 , -1.75785293]) #dn_snow=-0.75
 graupRateL=[]
+zR_coeff=np.polyfit(np.log10(sdsu.tablep2.rainrate[1:260]),\
+                    0.1*sdsu.tablep2.zkur[1:260],1)
+fint=np.interp(range(47),[0,20,32,33.1, 47],[1,1,1,0,0])
+
+from forwardModelZ import *
+
+zKu_mL=[]
+piaKu_mL=[]
+x=np.arange(47)
+bump=1+0.0025*(np.exp(-(x-34)**2/1))
+
 for i,zku1 in enumerate(zKuL):
     ibzd=32
     dr=0.25
@@ -131,16 +142,32 @@ for i,zku1 in enumerate(zKuL):
     zkuc1= hb_backwards(zku1,alpha_ice,ibzd,alpha_rain,beta,dr,srt_pia)
     #zkuc1,eps,piaHB=hb(zku1,alpha_ice,ibzd,alpha_rain,beta,dr)
     zKuc1L.append(zkuc1)
-    sfcPrecipL2.append((10**(0.1*zkuc1[-1])/300.)**(1/1.3))
-    pRate2L.append((10**(0.1*zkuc1[:])/300.)**(1/1.3))
-    graupRateL.append(10**(grateCoeff[0]*zkuc1+grateCoeff[1]))
+    sfcPrecipL2.append((10**(0.1*zkuc1[-1])/100.)**(1/1.6))
+    rain_rate=(10**(0.1*zkuc1[:])/100.)**(1/1.6)
+    graup_rate=10**(grateCoeff[0]*zkuc1+grateCoeff[1])*1.1
+    pRate2L.append(rain_rate)
+    graupRateL.append(graup_rate)
+    dNw=(0.1*zkuc1-zR_coeff[1]-zR_coeff[0]*np.log10(rain_rate))/(1-zR_coeff[0])
+    di=slayerTL[i]
+    iz=31
+    zKu_m,piaKu_m=forward_model_ku(graup_rate,rain_rate,fint,dNw,dr,di,sdsu,iz)
+    piaKu_mL.append(piaKu_m)
+    zKu_mL.append(zKu_m)
     #piaHBL.append(piaHB)
 
 plt.plot(np.array(pRate2L).mean(axis=0))
-fint=np.interp(range(47),[0,20,36,39,47],[1,1,1,0,0])
-mixPrecip=fint*np.array(graupRateL).mean(axis=0)+(1-fint)*np.array(pRate2L).mean(axis=0)
+
+mixPrecip=np.array(graupRateL).mean(axis=0)+np.array(pRate2L).mean(axis=0)
 plt.plot(mixPrecip)
 plt.plot(np.array(graupRateL).mean(axis=0),'*')
+z_sfc=np.array(zKuc1L)[:,-1]
+rain_sfc=(10**(0.1*z_sfc)/200.)**(1/1.6)
+dNw=(0.1*z_sfc-zR_coeff[1]-zR_coeff[0]*np.log10(rain_sfc))/(1-zR_coeff[0])
+
+plt.plot(np.array(zKu_mL).mean(axis=0))
+plt.plot(np.array(zKuL).mean(axis=0))
+
+
 stop   
 plt.plot(np.array(zKuL).mean(axis=0),range(47)[::-1])
 plt.plot(np.array(zKucL).mean(axis=0),range(47)[::-1])
